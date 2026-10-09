@@ -14,12 +14,42 @@ jobs:
         with:
           node-version: "22"
       - run: node compute-root.mjs
-      - name: OpenTimestamps stamp (best effort)
+      - name: OpenTimestamps stamp and upgrade (best effort)
         run: |
+          pip install --quiet opentimestamps-client || exit 0
+
+          # Stamp today's root. A fresh stamp is only a calendar commitment —
+          # the Bitcoin attestation does not exist until the calendar folds the
+          # root into a block and the receipt is upgraded to carry the proof.
           latest=$(ls roots/*.json 2>/dev/null | sort | tail -1)
           if [ -n "$latest" ] && [ ! -f "$latest.ots" ]; then
-            pip install --quiet opentimestamps-client && ots stamp "$latest" || echo "ots stamp failed (non-fatal)"
+            ots stamp "$latest" || echo "ots stamp failed (non-fatal)"
           fi
+
+          # Upgrade every older receipt. Without this the log accumulates
+          # receipts that are forever "Pending confirmation in Bitcoin
+          # blockchain" — which is what the first ten days were, while the
+          # website claimed the roots were Bitcoin-timestamped. `ots upgrade`
+          # is idempotent and a no-op once a receipt carries its attestation,
+          # so running it over the whole directory daily is both cheap and
+          # self-healing for any day the job was down.
+          for ots in roots/*.json.ots; do
+            [ -e "$ots" ] || continue
+            ots upgrade "$ots" || echo "ots upgrade pending for $ots (non-fatal)"
+          done
+          rm -f roots/*.ots.bak
+
+          # Say in the log what is actually proven, so the claim is auditable
+          # from the job output and not only from the bytes.
+          echo "--- attestation status ---"
+          for ots in roots/*.json.ots; do
+            [ -e "$ots" ] || continue
+            if ots info "$ots" 2>/dev/null | grep -q "BitcoinBlockHeaderAttestation"; then
+              echo "bitcoin  $ots"
+            else
+              echo "pending  $ots"
+            fi
+          done
       - name: commit
         run: |
           git config user.name "kyv-attest-bot"
