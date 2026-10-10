@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-10",
+  "algo": "sha256-merkle-v0",
+  "source": "https://foundr.ventures/.well-known/attestations.json",
+  "leaf_count": 2,
+  "leaves": [
+    "6c51bef4ab19e236bdbb46b5700aad275ad012cf102ba09625e7935661ce5720",
+    "e67168ed3faf379c6aa9f04024b0952212e65889f3d6754df0d56b553f604bb3"
+  ],
+  "root": "1ffe5ecf0fc16db7168ecb815fb7a7156d443b8a630b39edc9eaba9dd98dc8a2"
+}
